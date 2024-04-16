@@ -6,6 +6,9 @@ class Hand:
     def __init__(self, cards: List[Card] = None):
         self.cards = cards if cards is not None else []
 
+    def size(self):
+        return len(self.cards)
+
     def sort(self) -> None:
         self.cards.sort()
 

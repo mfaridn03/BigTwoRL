@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 from core.classes.card import Card
 from core.classes.deck import Deck
 from core.classes.hand import Hand
@@ -30,29 +30,40 @@ class GameAuto:
 
         # play data
         self.play_to_beat: List[Card] = []
-        self.round_history: List[List[Card]] = []
+        self.round_history: List[List[Tuple[int, str]]] = []
         self.hand_sizes: List[int] = [13, 13, 13, 13]
 
         # game data
         self.scores: List[int] = [0, 0, 0, 0]
-        self.round_no: int = 0
+        self.round_no: int = 1
 
         # other
         self._passes: int = 0
+        self.ROUND_LIMIT = 10
 
     def game_loop(self):
-        while self.round_loop():
-            pass
+        for i in range(self.ROUND_LIMIT):
+            self.init()
+            self.round_no = i + 1
 
-        self.round_start = True
+            while self.round_loop():
+                pass
 
-        # loop until 10 rounds
+            # reset round
+            self.round_start = True
 
     def round_loop(self):
+        """
+        Stuff that's done in a round
+        """
+        # update round history
+        self.round_history.append([])
+
         while self.trick_loop():
-            # time.sleep(0.05)
+            # time.sleep(0.1)
             pass
 
+        # reset trick
         self.play_to_beat = []
         self.trick_start = True
 
@@ -60,19 +71,25 @@ class GameAuto:
             print(f"Trick ends, winner: {self.players[self.ci].name} ({self.ci})")
             print("------------")
 
-        # check if any player has no cards left
-        for _, player in enumerate(self.players):
-            if len(player.hand) == 0:
-                if self.verbose:
-                    print(f"{player.name} has no cards left. GG")
+        win = any([player.hand.is_empty() for player in self.players])
 
-                player.wins += 1
-                self.scores[player.id] += 1
-                return False
+        if win:
+            for p in self.players:
+                # calculate scores
+                self.scores[p.id] += p.hand.size()
+
+                # check for winner
+                if p.hand.is_empty():
+                    # print(f"{p.name} ({p.id}) wins!")
+                    p.wins += 1
+            return False
 
         return True
 
     def trick_loop(self):
+        """
+        Stuff that's done in a trick
+        """
         # get play from player
         play = self.players[self.ci].play(self.get_data())
         is_valid = Utils.is_valid_play(play, self.get_data())
@@ -83,8 +100,12 @@ class GameAuto:
                 f"Invalid play from {self.players[self.ci].name}: tried {play} on {self.play_to_beat}"
             )
 
+        # remove cards from hand, update hand size
         self.players[self.ci].hand.remove(play)
-        self.hand_sizes[self.ci] -= len(play)
+        self.hand_sizes[self.players[self.ci].id] -= len(play)
+
+        # update round history
+        self.round_history[-1].append((self.players[self.ci].id, play))
 
         if self.verbose:
             print(
@@ -102,7 +123,7 @@ class GameAuto:
             self._passes = 0
             self.play_to_beat = play.copy()
 
-        self.ci = (self.ci + 1) % 4
+        self.ci = (self.ci + 1) % 4  # next player, loop around
         self.trick_start = False
         self.round_start = False
 
@@ -115,24 +136,28 @@ class GameAuto:
 
     def get_data(self) -> dict:
         """
-        * `hand`: A list of card strings that are the card(s) in your hand.
-        * `play_to_beat`: The current best play of the trick. If no such play exists (you are the first play in the trick), this will be an empty list.
-        * `round_history`: A list of *trick_history* entries.
-          A *trick_history* entry is a list of *trick_play* entries.
-          Each *trick_play* entry is a `(player_no, play)` 2-tuple, where `player_no` is an integer between 0 and 3 (inclusive) indicating which player made the play, and `play` is the play that said player made, which will be a list of card strings.
-        * `player_no`: An integer between 0 and 3 (inclusive) indicating which player number you are in the game.
-        * `hand_sizes`: A 4-tuple of integers representing the number of cards each player has in their hand, in player number order.
-        * `scores`: A 4-tuple of integers representing the score of each player at the start of this round, in player number order.
-        * `round_no`: An integer between 0 and 9 (inclusive) indicating which round number is currently being played.
+        `hand`: A list of card strings that are the card(s) in your hand.
+        `play_to_beat`: The current best play of the trick. If no such play exists (you are the first play in the trick), this will be an empty list.
+        `round_history`: A list of *trick_history* entries.
+        A *trick_history* entry is a list of *trick_play* entries.
+        Each *trick_play* entry is a `(player_no, play)` 2-tuple, where `player_no` is an integer between 0 and 3 (inclusive) indicating which player made the play, and `play` is the play that said player made, which will be a list of card strings.
+        `trick_start`: A boolean indicating whether or not the trick has just started.
+        `round_start`: A boolean indicating whether or not the round has just started.
+        `player_id`: An integer between 0 and 3 (inclusive) indicating which player number you are in the game.
+        `hand_sizes`: A 4 size list of integers representing the number of cards each player has in their hand, in player number order.
+        `scores`: A 4 size list of integers representing the score of each player at the start of this round, in player number order.
+        `round_no`: An integer between 0 and 9 (inclusive) indicating which round number is currently being played.
         """
         return {
-            "hand": self.players[self.ci].hand,
+            "hand": list(self.players[self.ci].hand),
             "play_to_beat": self.play_to_beat,
+            "round_history": self.round_history,
             "trick_start": self.trick_start,  # start of trick or not
             "round_start": self.round_start,  # start of round or not
-            "round_history": self.round_history,
+            "player_id": self.players[self.ci].id,
             "hand_sizes": self.hand_sizes,
             "scores": self.scores,
+            "round_no": self.round_no,
         }
 
     def reset(self):
@@ -141,11 +166,10 @@ class GameAuto:
         self.round_start = True
 
         self.play_to_beat = []
-        self.round_history = []
         self.hand_sizes = [13, 13, 13, 13]
-        self.scores = [0, 0, 0, 0]
 
     def init(self):
+        # TODO: find a better name for this and reset()
         self.reset()
 
         deck = Deck()
@@ -170,16 +194,14 @@ class GameAuto:
             print("------------")
 
     def start(self):
-        self.init()
-
         # 100 games
-        for i in range(1000):
-            self.game_loop()
-            self.init()
+        self.game_loop()
 
         # print results
         print("Results:")
         self.players.sort(key=lambda x: x.name)
 
         for player in self.players:
-            print(f"{player.name}: {player.wins}")
+            print(f"{player.name} ({player.id}): {player.wins}")
+
+        print("------------")
