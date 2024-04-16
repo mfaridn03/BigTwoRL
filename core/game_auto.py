@@ -11,9 +11,6 @@ from core.players.p2 import Player2
 from core.players.p3 import Player3
 from core.players.p4 import Player4
 
-# temp
-import time
-
 
 class GameAuto:
     def __init__(self, verbose=False):
@@ -71,20 +68,19 @@ class GameAuto:
             print(f"Trick ends, winner: {self.players[self.ci].name} ({self.ci})")
             print("------------")
 
-        win = any([player.hand.is_empty() for player in self.players])
+        # end-of-round checks
+        win = False
+        for p in self.players:
+            # calculate scores
+            self.scores[p.id] += p.hand.size()
 
-        if win:
-            for p in self.players:
-                # calculate scores
-                self.scores[p.id] += p.hand.size()
+            # check for winner
+            if p.hand.is_empty():
+                p.wins += 1
+                win = True
 
-                # check for winner
-                if p.hand.is_empty():
-                    # print(f"{p.name} ({p.id}) wins!")
-                    p.wins += 1
-            return False
-
-        return True
+        # end loop if someone wins
+        return not win
 
     def trick_loop(self):
         """
@@ -198,7 +194,7 @@ class GameAuto:
         self.game_loop()
 
         # print results
-        print("Results:")
+        print(f"{self.ROUND_LIMIT} rounds results:")
         self.players.sort(key=lambda x: x.name)
 
         for player in self.players:
