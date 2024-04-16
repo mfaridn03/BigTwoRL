@@ -3,17 +3,16 @@ from core.classes.hand import Hand
 from typing import List
 
 
-# Abstract class for a player
 class Player:
-    def __init__(self, name, hand: Hand = None):
-        self.name = name
-        self.hand = Hand() if hand is None else hand
+    def __init__(self, name):
+        self.name: str = name
+        self.hand: Hand = Hand()
         self.hand.sort()
+        self.id = -1  # this will be determined by the game
+        # TEMP
+        self.wins = 0
 
-    def play(self, cards: List[Card]) -> List[Card]:
-        pass
-
-    def has_card(self, card: Card) -> bool:
+    def play(self, game_data: dict) -> List[Card]:
         pass
 
     def __str__(self):

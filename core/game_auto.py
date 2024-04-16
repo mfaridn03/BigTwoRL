@@ -5,14 +5,24 @@ from core.classes.hand import Hand
 from core.classes.player import Player
 from core.classes.utils import Utils
 
+# players
+from core.players.p1 import Player1
+from core.players.p2 import Player2
+from core.players.p3 import Player3
+from core.players.p4 import Player4
 
-class Game:
-    def __init__(self):
-        self.players = [
-            Player("Alice"),
-            Player("Bob"),
-            Player("Christine"),
-            Player("Dean"),
+# temp
+import time
+
+
+class GameAuto:
+    def __init__(self, verbose=False):
+        self.verbose = verbose
+        self.players: List[Player] = [
+            Player1(),
+            Player2(),
+            Player3(),
+            Player4(),
         ]
         self.ci: int = 0
         self.trick_start: bool = True
@@ -40,29 +50,46 @@ class Game:
 
     def round_loop(self):
         while self.trick_loop():
+            # time.sleep(0.05)
             pass
 
         self.play_to_beat = []
         self.trick_start = True
-        print("Trick ends, winner: ", self.players[self.ci].name)
-        print("------------")
+
+        if self.verbose:
+            print(f"Trick ends, winner: {self.players[self.ci].name} ({self.ci})")
+            print("------------")
 
         # check if any player has no cards left
         for _, player in enumerate(self.players):
             if len(player.hand) == 0:
-                print(f"{player.name} has no cards left. GG")
+                if self.verbose:
+                    print(f"{player.name} has no cards left. GG")
+
+                player.wins += 1
                 self.scores[player.id] += 1
                 return False
 
         return True
 
     def trick_loop(self):
-        print(f"\n{self.players[self.ci].name}'s turn")
-        print("Your hand: ", self.players[self.ci].hand)
-        print("To beat:", self.play_to_beat)
-
         # get play from player
-        play = self.get_play_loop()
+        play = self.players[self.ci].play(self.get_data())
+        is_valid = Utils.is_valid_play(play, self.get_data())
+
+        if not is_valid:
+            print(self.get_data())
+            raise ValueError(
+                f"Invalid play from {self.players[self.ci].name}: tried {play} on {self.play_to_beat}"
+            )
+
+        self.players[self.ci].hand.remove(play)
+        self.hand_sizes[self.ci] -= len(play)
+
+        if self.verbose:
+            print(
+                f"{self.players[self.ci].id} played {play if play != [] else '[  ]'} | Remaining: {self.players[self.ci].hand}"
+            )
 
         # stop if player has no cards left
         if self.players[self.ci].hand.is_empty():
@@ -85,31 +112,6 @@ class Game:
             return False
         else:
             return True
-
-    def get_play_loop(self):
-        while True:
-            try:
-                cards = input("Enter cards: ").upper().split()
-                to_play = []
-
-                # handle pass
-                if "PASS" in cards and Utils.is_valid_play([], self.get_data()):
-                    return []
-
-                for card in cards:
-                    card = Card.from_str(card)
-                    to_play.append(card)
-
-                # check if cards are valid
-                if Utils.is_valid_play(to_play, self.get_data()):
-                    # remove cards
-                    for card in to_play:
-                        self.players[self.ci].hand.remove(card)
-
-                    return to_play
-
-            except (ValueError, IndexError):
-                pass
 
     def get_data(self) -> dict:
         """
@@ -160,7 +162,24 @@ class Game:
         while self.players[0].hand[0] != Card.lowest():
             self.players.append(self.players.pop(0))
 
-        self.game_loop()
+        if self.verbose:
+            print("Players:")
+            for player in self.players:
+                print(f"{player.id}: {player.hand}")
+            print(f"Order: {[player.id for player in self.players]}")
+            print("------------")
 
     def start(self):
         self.init()
+
+        # 100 games
+        for i in range(1000):
+            self.game_loop()
+            self.init()
+
+        # print results
+        print("Results:")
+        self.players.sort(key=lambda x: x.name)
+
+        for player in self.players:
+            print(f"{player.name}: {player.wins}")

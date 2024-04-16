@@ -10,22 +10,8 @@ class Deck:
         self.build()
 
     def build(self) -> None:
-        for suit in ["H", "D", "C", "S"]:
-            for rank in [
-                "2",
-                "3",
-                "4",
-                "5",
-                "6",
-                "7",
-                "8",
-                "9",
-                "T",
-                "J",
-                "Q",
-                "K",
-                "A",
-            ]:
+        for suit in Card.suit_order():
+            for rank in Card.rank_order():
                 self.cards.append(Card(rank, suit))
 
     def shuffle(self) -> None:
@@ -33,7 +19,7 @@ class Deck:
 
     def draw(self, n=1) -> List[Card]:
         drawn = []
-        for i in range(n):
+        for _ in range(n):
             drawn.append(self.cards.pop())
         return drawn
 
